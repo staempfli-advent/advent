@@ -274,8 +274,10 @@
     return fetch(m.id + '.bin', {cache:'force-cache'})
       .then(function(r){ if (!r.ok) throw new Error('http'); return r.arrayBuffer(); })
       .then(function(buf){ var u = new Uint8Array(buf); return crypto.subtle.decrypt({name:'AES-GCM', iv:u.subarray(0,12)}, KEY, u.subarray(12)); })
-      .then(function(pt){ var url = URL.createObjectURL(new Blob([pt], {type: m.mime})); CACHE[m.id] = url; return url; });
+      .then(function(pt){ var url = URL.createObjectURL(new Blob([pt], {type: safeMime(m)})); CACHE[m.id] = url; return url; });
   }
+  var OKMIME = {'image/jpeg':1,'video/mp4':1,'video/quicktime':1,'video/webm':1};
+  function safeMime(m){ return OKMIME[m.mime] && (m.mime.indexOf(m.type === 'video' ? 'video/' : 'image/') === 0) ? m.mime : (m.type === 'video' ? 'video/mp4' : 'image/jpeg'); }
   function validMedia(list){ return (list || []).filter(function(m){ return m && /^[0-9a-f]{32}$/.test(m.id); }); }
   function openDoor(d){
     var c = DOORS[d] || {}, all = [], html = '', n = 0;
@@ -594,7 +596,11 @@
           if (isVideo){
             if (f.size > MAX_VIDEO){ problems.push('Ein Video ist mit ' + mb(f.size) + ' zu gross (höchstens 24 MB). Tipp: Schick es dir selbst per WhatsApp und speichere es von dort, dann wird es kleiner. Oder kürze es.'); return; }
             msg.textContent = 'Video wird übernommen …';
-            return addItem({ type: 'video', mime: f.type || 'video/mp4', blob: f });
+            return readBuf(f.slice(0, 16)).then(function(ab){
+              var u8 = new Uint8Array(ab);
+              if (!isVideoBytes(u8)){ problems.push('Diese Datei ist kein echtes Video.'); return; }
+              return addItem({ type: 'video', mime: videoMime(u8, f.type), blob: new Blob([f], { type: videoMime(u8, f.type) }) });
+            });
           }
           if (isImage){
             msg.textContent = 'Foto wird vorbereitet …';
@@ -649,39 +655,82 @@
       });
     });
   }
+  /* ---------- Sicherheits-Prüfungen ---------- */
+  var MAX_ADVENT = 400 * 1024 * 1024, MAX_IMAGE_IN = 40 * 1024 * 1024;
+  var VIDEO_MIME = {'video/mp4':1,'video/quicktime':1,'video/webm':1};
+  function isVideoBytes(u){
+    if (u.length < 12) return false;
+    var ftyp = u[4] === 0x66 && u[5] === 0x74 && u[6] === 0x79 && u[7] === 0x70;
+    var webm = u[0] === 0x1A && u[1] === 0x45 && u[2] === 0xDF && u[3] === 0xA3;
+    return ftyp || webm;
+  }
+  function videoMime(u, given){
+    if (u[0] === 0x1A) return 'video/webm';
+    return VIDEO_MIME[given] && given !== 'video/webm' ? given : 'video/mp4';
+  }
+  function cleanText(v, max){ return String(v == null ? '' : v).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').slice(0, max); }
+  /* Prüft einen Beitrag vollständig, bevor irgendetwas gespeichert wird.
+     Fotos werden neu gezeichnet (nur reine Bildpunkte bleiben), Videos müssen echte Videodateien sein. */
+  function checkBeitrag(b, expectWho){
+    var h = b.head, body = b.body;
+    if (!h || typeof h !== 'object' || h.v !== 1) throw new Error('format');
+    if (expectWho ? h.who !== expectWho : OTHERS.indexOf(h.who) < 0) throw new Error('who');
+    var units = [];
+    doorsOf(h.who).forEach(function(d){ units.push({ u: U('door', d), src: h.doors && h.doors[d] }); });
+    if (SHARED24) units.push({ u: U('part', h.who), src: h.part });
+    var out = [], chain = Promise.resolve(), seen = {};
+    units.forEach(function(x){
+      var src = (x.src && typeof x.src === 'object') ? x.src : {};
+      var list = Array.isArray(src.media) ? src.media : [];
+      if (list.length > MAX_ITEMS) throw new Error('count');
+      var res = { u: x.u, title: cleanText(src.title, 80), text: cleanText(src.text, 1500), media: [] };
+      out.push(res);
+      list.forEach(function(m){
+        if (!m || !/^[0-9a-f]{32}$/.test(m.id) || seen[m.id]) throw new Error('id');
+        seen[m.id] = 1;
+        var off = m.off, len = m.len;
+        if (!Number.isInteger(off) || !Number.isInteger(len) || off < 0 || len <= 0 || off + len > body.length) throw new Error('range');
+        var bytes = body.slice(off, off + len);
+        if (m.type === 'video'){
+          if (len > MAX_VIDEO || !isVideoBytes(bytes)) throw new Error('video');
+          res.media.push({ id: m.id, type: 'video', mime: videoMime(bytes, m.mime), blob: new Blob([bytes], { type: videoMime(bytes, m.mime) }) });
+        } else {
+          if (len > MAX_IMAGE_IN) throw new Error('image');
+          chain = chain.then(function(){ return shrinkPhoto(new Blob([bytes])); }).then(function(clean){
+            res.media.push({ id: m.id, type: 'image', mime: 'image/jpeg', blob: clean });
+          }, function(){ throw new Error('image'); });
+        }
+      });
+    });
+    return chain.then(function(){ return { who: h.who, units: out }; });
+  }
   function readBeitrag(file){
+    if (!file || file.size > MAX_ADVENT || file.size < 29) return Promise.reject(new Error('size'));
     return readBuf(file).then(function(ab){
       var u = new Uint8Array(ab);
       return keyFor(['decrypt']).then(function(key){ return crypto.subtle.decrypt({ name: 'AES-GCM', iv: u.subarray(0, 12) }, key, u.subarray(12)); });
     }).then(function(pt){
       var u = new Uint8Array(pt), hl = new DataView(pt).getUint32(0);
+      if (hl > 1048576 || 4 + hl > u.length) throw new Error('format');
       var head = JSON.parse(new TextDecoder().decode(u.subarray(4, 4 + hl)));
       return { head: head, body: u.subarray(4 + hl) };
     });
   }
-  function applyBeitrag(b){
-    var who = b.head.who;
-    if (!PEOPLE.some(function(p){ return p.id === who; })) throw new Error('who');
+  function applyBeitrag(checked){
     var jobs = Promise.resolve();
-    function apply(u, src){
-      src = src || { title: '', text: '', media: [] };
-      var old = uget(u), oldMedia = old.media || [], keep = {};
-      var media = [];
-      (src.media || []).forEach(function(m){
-        if (!/^[0-9a-f]{32}$/.test(m.id)) return;
+    checked.units.forEach(function(x){
+      var u = x.u, old = uget(u), oldMedia = old.media || [], keep = {}, media = [];
+      x.media.forEach(function(m){
         keep[m.id] = 1;
         var prev = oldMedia.filter(function(z){ return z.id === m.id; })[0];
-        var blob = new Blob([b.body.slice(m.off, m.off + m.len)], { type: m.mime });
-        jobs = jobs.then(function(){ return put('blob-' + m.id, blob); });
-        media.push({ id: m.id, type: m.type === 'video' ? 'video' : 'image', mime: m.mime, size: m.len, exported: !!(prev && prev.exported) });
+        jobs = jobs.then(function(){ return put('blob-' + m.id, m.blob); });
+        media.push({ id: m.id, type: m.type, mime: m.mime, size: m.blob.size, exported: !!(prev && prev.exported && prev.size === m.blob.size) });
       });
       oldMedia.forEach(function(z){ if (!keep[z.id]) jobs = jobs.then(function(){ return del('blob-' + z.id); }); });
-      uset(u, { title: String(src.title || ''), text: String(src.text || ''), media: media });
+      uset(u, { title: x.title, text: x.text, media: media });
       jobs = jobs.then(function(){ return saveUnitNow(u); });
-    }
-    doorsOf(who).forEach(function(d){ apply(U('door', d), b.head.doors && b.head.doors[d]); });
-    if (SHARED24) apply(U('part', who), b.head.part);
-    return jobs.then(function(){ return who; });
+    });
+    return jobs.then(function(){ return checked.who; });
   }
   $('prepBeitrag').onclick = function(){
     var m = $('beitragMsg'); $('beitragOut').style.display = 'none'; m.textContent = 'Wird verschlüsselt …';
@@ -701,8 +750,8 @@
     if (!f){ m.innerHTML = err('Wähle zuerst die .advent-Datei.'); return; }
     m.textContent = 'Wird geladen …';
     readBeitrag(f).then(function(b){
-      if (b.head.who !== state.meta.role) throw new Error('other');
-      return applyBeitrag(b);
+      if (!b.head || b.head.who !== state.meta.role) throw new Error('other');
+      return checkBeitrag(b, state.meta.role).then(applyBeitrag);
     }).then(function(){ renderAll(); m.textContent = 'Geladen. Deine Türchen sind wieder da.'; })
       .catch(function(e){ m.innerHTML = err(e && e.message === 'other' ? 'Diese Datei ist der Beitrag einer anderen Person.' : 'Diese Datei passt nicht zu diesem Kalender.'); });
   };
@@ -711,20 +760,26 @@
   $('beitragBtn').onclick = function(){
     var files = Array.prototype.slice.call($('beitragIn').files || []), m = $('beitragInMsg');
     if (!files.length){ m.innerHTML = err('Wähle zuerst eine oder mehrere .advent-Dateien.'); return; }
-    var done = [], bad = 0, chain = Promise.resolve();
+    var done = [], bad = [], chain = Promise.resolve();
     m.textContent = 'Wird übernommen …';
     files.forEach(function(f){
-      chain = chain.then(function(){ return readBeitrag(f); }).then(function(b){
-        if (b.head.who === 'dr') throw new Error('dr');
-        return applyBeitrag(b);
-      }).then(function(who){
-        state.meta.imports = state.meta.imports || {}; state.meta.imports[who] = new Date().toISOString(); done.push(nameOf(who));
-      }).catch(function(){ bad++; });
+      chain = chain.then(function(){
+        if (!/\.advent$/i.test(f.name || '')) throw new Error('ext');
+        return readBeitrag(f);
+      }).then(function(b){ return checkBeitrag(b, null); }).then(applyBeitrag).then(function(who){
+        state.meta.imports = state.meta.imports || {}; state.meta.imports[who] = new Date().toISOString();
+        var fn = (f.name.match(/beitrag-([a-z]+)/) || [])[1];
+        done.push(nameOf(who) + (fn && fn !== who ? ' (Achtung: Dateiname passt nicht zur Person)' : ''));
+      }).catch(function(e){
+        var why = { ext: 'keine .advent-Datei', size: 'zu gross oder leer', video: 'enthält ein Video, das keine echte Videodatei ist', image: 'enthält ein Foto, das sich nicht lesen lässt', count: 'zu viele Fotos oder Videos' }[e && e.message] || 'gehört nicht zu diesem Kalender oder ist beschädigt';
+        bad.push((f.name || 'Datei') + ': ' + why);
+      });
     });
     chain.then(function(){ return saveMeta(); }).then(function(){
       $('beitragIn').value = ''; renderStatus();
-      m.innerHTML = (done.length ? 'Übernommen: ' + done.join(', ') + '. Jetzt die Dateien vorbereiten und hochladen.' : '') +
-        (bad ? (done.length ? '<br>' : '') + err(bad + ' Datei(en) passten nicht zu diesem Kalender.') : '');
+      m.innerHTML = '';
+      if (done.length){ var ok = document.createElement('span'); ok.textContent = 'Übernommen: ' + done.join(', ') + '. Jetzt die Dateien vorbereiten und hochladen.'; m.appendChild(ok); }
+      bad.forEach(function(t){ var e = document.createElement('span'); e.className = 'err'; e.textContent = 'Nicht übernommen: ' + t; m.appendChild(document.createElement('br')); m.appendChild(e); });
     });
   };
 
@@ -844,7 +899,7 @@
           chain = chain.then(function(){
             var f = bins[m.id]; if (!f){ missing++; return; }
             return readBuf(f).then(function(ab){ var u = new Uint8Array(ab); return crypto.subtle.decrypt({ name: 'AES-GCM', iv: u.subarray(0, 12) }, key, u.subarray(12)); })
-              .then(function(pt){ var bl = new Blob([pt], { type: m.mime }); return put('blob-' + m.id, bl).then(function(){ dst.media.push({ id: m.id, type: m.type, mime: m.mime, size: bl.size, exported: true }); }); })
+              .then(function(pt){ var isV = m.type === 'video', mm = isV ? videoMime(new Uint8Array(pt), m.mime) : 'image/jpeg'; if (isV && !isVideoBytes(new Uint8Array(pt))) throw new Error('video'); var bl = new Blob([pt], { type: mm }); return put('blob-' + m.id, bl).then(function(){ dst.media.push({ id: m.id, type: isV ? 'video' : 'image', mime: mm, size: bl.size, exported: true }); }); })
               .catch(function(){ missing++; });
           });
         });
