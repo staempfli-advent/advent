@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; media-src blob:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<title>Advent-Werkstatt</title>
+<style>
+  :root{--night:#121c28;--door:#1c2a3b;--line:#33445a;--cream:#f3ead8;--sand:#e9d9b8;--gold:#e2b866;--ink:#1c2a3b;--brown:#4a4236;--muted:#9fb0c3}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--night);color:var(--cream);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:17px}
+  body{padding:calc(env(safe-area-inset-top) + 20px) 14px calc(env(safe-area-inset-bottom) + 40px)}
+  main{max-width:640px;margin:0 auto}
+  h1{font-family:Georgia,"Times New Roman",serif;font-weight:500;font-size:30px;margin:0 0 6px}
+  h2{font-family:Georgia,"Times New Roman",serif;font-weight:500;font-size:21px;margin:0 0 10px}
+  .lead{color:var(--muted);margin:0 0 18px;line-height:1.5}
+  .lead b{color:var(--gold);font-weight:500}
+  .card{background:var(--door);border:1px solid var(--line);border-radius:16px;padding:16px;margin:0 0 14px}
+  label{display:block;font-size:15px;color:var(--muted);margin:0 0 12px}
+  input[type=text],input[type=url],textarea{display:block;width:100%;margin-top:6px;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0f1822;color:var(--cream);font:inherit}
+  textarea{min-height:92px;resize:vertical;line-height:1.5}
+  button,.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--cream);font:inherit;font-size:16px;cursor:pointer;text-decoration:none}
+  button.primary,.btn.primary{background:var(--gold);color:var(--ink);border:none;width:100%;padding:16px;font-size:18px}
+  button.small{padding:8px 12px;font-size:14px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  code{display:block;word-break:break-all;background:#0f1822;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:13px;color:var(--sand);margin:6px 0 10px}
+  .note{font-size:14px;color:var(--muted);line-height:1.5;margin:8px 0 0}
+  .progress{font-size:16px;color:var(--gold);margin:4px 0 12px}
+  .door-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .door-head h3{font-family:Georgia,serif;font-weight:500;font-size:20px;margin:0}
+  .badge{font-size:13px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+  .badge.ok{background:var(--sand);color:var(--ink);border-color:var(--sand)}
+  .media{position:relative;margin-bottom:10px}
+  .media img,.media video{width:100%;max-height:300px;object-fit:cover;border-radius:12px;display:block;background:#0f1822}
+  .media .rm{position:absolute;top:8px;right:8px;background:rgba(18,28,40,.85)}
+  .media .info{font-size:13px;color:var(--muted);margin-top:4px}
+  .pick{position:relative;overflow:hidden}
+  .pick input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:100px}
+  .msg{font-size:15px;margin:10px 0 0;min-height:20px;color:var(--sand);line-height:1.5}
+  .err{color:#f09595}
+  .files a{display:flex;justify-content:space-between;margin:6px 0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;color:var(--sand);text-decoration:none;font-size:15px}
+  details summary{cursor:pointer;color:var(--muted);font-size:15px}
+  .who-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .who-grid button{padding:18px;font-size:20px;font-family:Georgia,serif}
+  .dr-only{display:none} body.is-dr .dr-only{display:block}
+  body.is-dr .contrib-only{display:none}
+  body.is-dr:not(.is-multi) .multi-only{display:none}
+</style>
+</head>
+<body>
+<main>
+  <h1>Advent-Werkstatt</h1>
+  <p class="lead">Fotos, Videos und Texte bleiben <b>auf diesem Gerät</b>. Diese Seite ist so gesperrt, dass sie keine Verbindung ins Internet aufbauen kann. Alles wird hier verschlüsselt, bevor es das Gerät verlässt.</p>
+
+  <section class="card" id="whoCard" style="display:none">
+    <h2>Wer bist du?</h2>
+    <div class="who-grid" id="whoGrid"></div>
+    <p class="msg" id="whoMsg"></p>
+  </section>
+
+  <div id="app" style="display:none">
+    <section class="card">
+      <div class="row" style="justify-content:space-between">
+        <h2 style="margin:0" id="hello"></h2>
+        <button class="small" id="switchWho">Person wechseln</button>
+      </div>
+      <p class="note" id="myDoors"></p>
+    </section>
+
+    <section class="card dr-only">
+      <h2>Einstellungen</h2>
+      <label>Titel des Kalenders
+        <input type="text" id="calTitle" maxlength="60" placeholder="Unser Advent 2026">
+      </label>
+      <label>Adresse der Kalender-Seite
+        <input type="url" id="baseUrl" placeholder="https://dicostaempfli.github.io/advent/">
+      </label>
+      <div style="font-size:15px;color:var(--muted)">Kalender-Link für die Familie</div>
+      <code id="link">wird erstellt…</code>
+      <button class="small" id="copyLink">Kalender-Link kopieren</button>
+      <p class="note">Der Teil nach dem # ist der Schlüssel. Ohne ihn kann niemand etwas sehen, nicht einmal GitHub. Bewahre den Link gut auf.</p>
+    </section>
+
+    <section class="card dr-only multi-only">
+      <h2>Werkstatt teilen</h2>
+      <p class="note" style="margin:0 0 10px">Schick diesen Link einzeln an Mat, Mal und Lin. Damit füllen sie ihre Türchen und schicken dir ihren Beitrag zurück.</p>
+      <code id="wLink"></code>
+      <button class="small" id="copyWLink">Werkstatt-Link kopieren</button>
+    </section>
+
+    <p class="progress" id="progress"></p>
+    <div id="doors"></div>
+
+    <section class="card contrib-only">
+      <h2>Beitrag an Rico senden</h2>
+      <button class="primary" id="prepBeitrag">Beitrag vorbereiten</button>
+      <p class="msg" id="beitragMsg" aria-live="polite"></p>
+      <div id="beitragOut" style="display:none">
+        <button class="primary" id="shareBeitrag" style="margin-top:6px">Senden (z. B. per WhatsApp an Rico)</button>
+        <div class="files" id="beitragFile"></div>
+      </div>
+      <p class="note">Im Teilen-Menü WhatsApp und dann Rico wählen. Du kannst jederzeit weiterarbeiten und den Beitrag nochmals schicken, der neue ersetzt den alten.</p>
+    </section>
+
+    <section class="card dr-only multi-only">
+      <h2>Beiträge der Familie übernehmen</h2>
+      <div id="status"></div>
+      <label style="margin-top:12px">Beitrags-Dateien (.advent)
+        <input type="file" id="beitragIn" multiple style="margin-top:6px;color:var(--cream)">
+      </label>
+      <button id="beitragBtn">Übernehmen</button>
+      <p class="msg" id="beitragInMsg" aria-live="polite"></p>
+      <p class="note">Die Inhalte der anderen werden hier nicht angezeigt, damit es für euch eine Überraschung bleibt.</p>
+    </section>
+
+    <section class="card dr-only">
+      <h2>Kalender veröffentlichen</h2>
+      <button class="primary" id="prepare">Dateien vorbereiten</button>
+      <p class="msg" id="buildMsg" aria-live="polite"></p>
+      <div id="out" style="display:none">
+        <button class="primary" id="shareAll" style="margin-top:6px">Alle Dateien sichern</button>
+        <p class="note">Oder jede Datei einzeln antippen:</p>
+        <div class="files" id="fileList"></div>
+      </div>
+      <p class="note">Lade alle Dateien ins GitHub-Repo hoch («Add file» → «Upload files»). Die index.html ersetzt jedes Mal die alte. Fotos und Videos, die schon oben sind, musst du nicht nochmals hochladen. Der Link bleibt immer gleich.</p>
+      <details style="margin-top:12px">
+        <summary>Alle Dateien nochmals erstellen</summary>
+        <p class="note">Nur nötig für ein neues Repo oder eine komplette Sicherung.</p>
+        <button class="small" id="prepareAll" style="margin-top:8px">Alles vorbereiten</button>
+      </details>
+    </section>
+
+    <section class="card contrib-only">
+      <details>
+        <summary>Meinen Beitrag wieder laden</summary>
+        <p class="note">Falls deine Einträge auf diesem Gerät verschwunden sind: Wähle die .advent-Datei, die du Rico geschickt hast.</p>
+        <input type="file" id="ownIn" style="margin-top:10px;color:var(--cream)">
+        <button id="ownBtn" style="margin-top:8px">Laden</button>
+        <p class="msg" id="ownMsg" aria-live="polite"></p>
+      </details>
+    </section>
+
+    <section class="card dr-only">
+      <details>
+        <summary>Auf einem anderen Gerät weiterarbeiten oder Sicherung laden</summary>
+        <p class="note">Wähle die index.html und alle .bin-Dateien gleichzeitig aus und füge den Kalender-Link ein.</p>
+        <label style="margin-top:12px">Dateien
+          <input type="file" id="importFile" multiple style="margin-top:6px;color:var(--cream)">
+        </label>
+        <label>Kalender-Link
+          <input type="url" id="importLink" placeholder="https://…#…">
+        </label>
+        <button id="importBtn">Übernehmen</button>
+        <p class="msg" id="importMsg" aria-live="polite"></p>
+      </details>
+    </section>
+  </div>
+</main>
+
+<template id="tpl">
+<style>
+  :root{--night:#121c28;--door:#1c2a3b;--line:#33445a;--cream:#f3ead8;--sand:#e9d9b8;--gold:#e2b866;--ink:#1c2a3b;--brown:#4a4236;--muted:#9fb0c3}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--night);color:var(--cream);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  body{min-height:100vh;padding:calc(env(safe-area-inset-top) + 28px) 16px calc(env(safe-area-inset-bottom) + 32px)}
+  main{max-width:520px;margin:0 auto}
+  header{text-align:center;margin-bottom:22px}
+  .star{width:30px;height:30px;color:var(--gold)}
+  h1{font-family:Georgia,"Times New Roman",serif;font-weight:500;font-size:32px;line-height:1.15;margin:6px 0 8px;color:var(--cream)}
+  .sub{font-size:17px;color:var(--muted);margin:0}
+  .hint{display:inline-block;margin-top:14px;font-size:17px;color:var(--gold);border:1px solid #5a4a2a;border-radius:999px;padding:8px 16px}
+  .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+  .door{aspect-ratio:1;border-radius:14px;border:1px solid var(--line);background:var(--door);color:var(--sand);font-family:Georgia,"Times New Roman",serif;font-size:28px;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;transition:transform .15s;user-select:none;padding:0}
+  .door:active{transform:scale(.94)}
+  .door.open{background:var(--sand);color:var(--ink);border-color:var(--sand)}
+  .door.locked{opacity:.5}
+  .door.today{background:var(--gold);color:var(--ink);border:none;animation:glow 2.2s ease-in-out infinite}
+  @keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(226,184,102,0)}50%{box-shadow:0 0 0 7px rgba(226,184,102,.28)}}
+  .lock{position:absolute;top:7px;right:8px;width:14px;height:14px;opacity:.8}
+  .shake{animation:sh .35s}
+  @keyframes sh{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+  .toast{min-height:28px;text-align:center;font-size:17px;color:var(--cream);margin:18px 0 0}
+  footer{text-align:center;color:#6f8096;font-size:14px;margin-top:26px}
+  .msgbox{text-align:center;font-size:18px;line-height:1.6;color:var(--sand);margin:40px 8px}
+  .overlay{position:fixed;inset:0;background:rgba(8,12,18,.78);display:none;align-items:flex-end;justify-content:center;z-index:10}
+  .overlay.show{display:flex}
+  .sheet{width:100%;max-width:520px;max-height:92vh;overflow-y:auto;background:var(--cream);color:var(--ink);border-radius:22px 22px 0 0;padding:18px 18px calc(env(safe-area-inset-bottom) + 18px);animation:up .3s ease-out}
+  @media (min-width:600px){.overlay{align-items:center}.sheet{border-radius:22px}}
+  @keyframes up{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+  .m{margin-bottom:12px}
+  .m img,.m video{width:100%;border-radius:14px;display:block;background:#1c2a3b}
+  .ph{aspect-ratio:4/3;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--cream);font-size:16px;background:#8fa9a3}
+  .ph svg{width:34px;height:34px}
+  .loading{aspect-ratio:4/3;border-radius:14px;display:flex;align-items:center;justify-content:center;background:#e2d6bd;color:var(--brown);font-size:16px}
+  .date{font-size:15px;color:#8a7c64;margin:4px 0 2px}
+  .title{font-family:Georgia,"Times New Roman",serif;font-weight:500;font-size:26px;margin:0 0 8px}
+  .text{font-size:18px;line-height:1.6;color:var(--brown);margin:0;white-space:pre-line}
+  .close{display:block;width:100%;margin-top:20px;padding:16px;border:none;border-radius:14px;background:var(--ink);color:var(--cream);font-size:18px;font-family:inherit;cursor:pointer}
+  .part{border-top:1px solid #d9ccb2;padding-top:14px;margin-top:14px}
+  .who{font-size:15px;color:#8a7c64;margin:0 0 8px;font-weight:500}
+</style>
+<main>
+  <header>
+    <svg class="star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>
+    <h1 id="title">Adventskalender</h1>
+    <p class="sub" id="sub"></p>
+    <span class="hint" id="hint" style="display:none">Tippe auf das leuchtende Türchen</span>
+  </header>
+  <p class="msgbox" id="msgbox">Der Kalender wird geöffnet …</p>
+  <div class="grid" id="grid"></div>
+  <p class="toast" id="toast" aria-live="polite"></p>
+  <footer id="foot" style="display:none">Jeden Tag geht ein neues Türchen auf.</footer>
+</main>
+<div class="overlay" id="overlay" role="dialog" aria-modal="true"><div class="sheet" id="sheet"></div></div>
+<script>
+(function(){
+  var YEAR = 2026, OPEN_HOUR = 6;
+  var DOORS = {}, PREVIEW = null, KEY = null, CACHE = {};
+  var $ = function(id){ return document.getElementById(id); };
+  var grid = $('grid'), toast = $('toast'), overlay = $('overlay'), sheet = $('sheet');
+
+  function fromB64(s){ var b = atob(s), u = new Uint8Array(b.length); for (var i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u; }
+  function fromHex(h){ var u = new Uint8Array(h.length/2); for (var i=0;i<u.length;i++) u[i]=parseInt(h.substr(i*2,2),16); return u; }
+  function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+  function zurichNow(){
+    var p = {}; new Intl.DateTimeFormat('en-US',{timeZone:'Europe/Zurich',year:'numeric',month:'numeric',day:'numeric',hour:'numeric',hour12:false})
+      .formatToParts(new Date()).forEach(function(x){ p[x.type]=x.value; });
+    return {y:+p.year, m:+p.month, d:+p.day, h:(+p.hour)%24};
+  }
+  function openUpTo(){
+    if (PREVIEW !== null) return PREVIEW;
+    var n = zurichNow();
+    if (n.y > YEAR || (n.y === YEAR && n.m === 12 && n.d > 24)) return 24;
+    if (n.y < YEAR || n.m < 12) return 0;
+    return Math.max(0, Math.min(24, n.h >= OPEN_HOUR ? n.d : n.d - 1));
+  }
+  function daysUntilDec1(){ var n = zurichNow(); return Math.round((Date.UTC(YEAR,11,1) - Date.UTC(n.y,n.m-1,n.d))/86400000); }
+
+  var lockSvg = '<svg class="lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+  var photoSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg>';
+
+  function render(){
+    var k = openUpTo(), sub = $('sub'), hint = $('hint');
+    if (k === 0){
+      var d = daysUntilDec1();
+      sub.textContent = d > 1 ? 'Noch ' + d + ' Tage bis zum ersten Türchen' : d === 1 ? 'Morgen geht das erste Türchen auf' : 'Das erste Türchen geht um ' + OPEN_HOUR + ' Uhr auf';
+      hint.style.display = 'none';
+    } else if (k === 24){
+      sub.textContent = 'Frohe Weihnachten!'; hint.textContent = 'Alle Türchen sind offen'; hint.style.display = '';
+    } else {
+      sub.textContent = 'Heute ist der ' + k + '. Dezember'; hint.textContent = 'Tippe auf das leuchtende Türchen'; hint.style.display = '';
+    }
+    grid.innerHTML = '';
+    for (var d = 1; d <= 24; d++) (function(d){
+      var b = document.createElement('button');
+      var st = d < k ? 'open' : d === k ? (k === 24 ? 'open' : 'today') : 'locked';
+      b.className = 'door ' + st;
+      b.innerHTML = d + (st === 'locked' ? lockSvg : '');
+      b.setAttribute('aria-label', 'Türchen ' + d + (st === 'locked' ? ', noch geschlossen' : ''));
+      b.onclick = function(){ st === 'locked' ? locked(b, d - k) : openDoor(d); };
+      grid.appendChild(b);
+    })(d);
+  }
+  function locked(b, n){
+    b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake');
+    toast.textContent = n === 1 ? 'Dieses Türchen geht morgen auf' : 'Noch ' + n + ' Tage Geduld';
+    clearTimeout(locked.t); locked.t = setTimeout(function(){ toast.textContent=''; }, 2600);
+  }
+  function loadMedia(m){
+    if (CACHE[m.id]) return Promise.resolve(CACHE[m.id]);
+    return fetch(m.id + '.bin', {cache:'force-cache'})
+      .then(function(r){ if (!r.ok) throw new Error('http'); return r.arrayBuffer(); })
+      .then(function(buf){ var u = new Uint8Array(buf); return crypto.subtle.decrypt({name:'AES-GCM', iv:u.subarray(0,12)}, KEY, u.subarray(12)); })
+      .then(function(pt){ var url = URL.createObjectURL(new Blob([pt], {type: m.mime})); CACHE[m.id] = url; return url; });
+  }
+  function validMedia(list){ return (list || []).filter(function(m){ return m && /^[0-9a-f]{32}$/.test(m.id); }); }
+  function openDoor(d){
+    var c = DOORS[d] || {}, all = [], html = '', n = 0;
+    function mediaHtml(list){ var h = ''; validMedia(list).forEach(function(m){ all.push(m); h += '<div class="m" id="m' + (n++) + '"><div class="loading">Wird geladen …</div></div>'; }); return h; }
+    if (c.parts && c.parts.length){
+      html += '<p class="date">' + d + '. Dezember · von uns allen</p><p class="title">' + esc(c.title || 'Für uns alle') + '</p>';
+      c.parts.forEach(function(p){
+        html += '<div class="part"><p class="who">' + esc(p.name || '') + '</p>' + mediaHtml(p.media) + (p.text ? '<p class="text">' + esc(p.text) + '</p>' : '') + '</div>';
+      });
+    } else {
+      var mh = mediaHtml(c.media);
+      if (!all.length) mh = '<div class="m"><div class="ph">' + photoSvg + '<span>' + ((c.title || c.text) ? 'Heute ohne Foto' : 'Dieses Türchen wird noch gefüllt') + '</span></div></div>';
+      html += mh + '<p class="date">' + d + '. Dezember' + (c.by ? ' · von ' + esc(c.by) : '') + '</p>' +
+        '<p class="title">' + esc(c.title || ('Türchen ' + d)) + '</p>' +
+        (c.text ? '<p class="text">' + esc(c.text) + '</p>' : '');
+    }
+    html += '<button class="close" id="closeBtn">Schliessen</button>';
+    sheet.innerHTML = html; sheet.scrollTop = 0;
+    overlay.classList.add('show');
+    $('closeBtn').onclick = closeDoor;
+    all.forEach(function(m, i){
+      loadMedia(m).then(function(url){
+        var box = $('m' + i); if (!box) return;
+        if (m.type === 'video'){
+          var v = document.createElement('video'); v.controls = true; v.setAttribute('playsinline',''); v.preload = 'metadata'; v.src = url;
+          box.innerHTML = ''; box.appendChild(v);
+        } else {
+          var im = document.createElement('img'); im.alt = 'Foto für den ' + d + '. Dezember'; im.src = url;
+          box.innerHTML = ''; box.appendChild(im);
+        }
+      }).catch(function(){ var box = $('m' + i); if (box) box.innerHTML = '<div class="loading">Konnte nicht geladen werden. Bitte später nochmals versuchen.</div>'; });
+    });
+  }
+  function closeDoor(){
+    var vs = sheet.querySelectorAll('video'); for (var i=0;i<vs.length;i++) vs[i].pause();
+    overlay.classList.remove('show');
+  }
+  overlay.addEventListener('click', function(e){ if (e.target === overlay) closeDoor(); });
+
+  function fail(){ $('msgbox').innerHTML = 'Dieser Link ist nicht vollständig.<br>Bitte tippe den Link in der WhatsApp-Gruppe direkt an.'; }
+  function start(){
+    var m = location.hash.match(/^#([0-9a-f]{64})(?:-v(\d{1,2}))?$/);
+    if (!m || !window.crypto || !crypto.subtle) return fail();
+    PREVIEW = m[2] ? Math.max(0, Math.min(24, +m[2])) : null;
+    var data;
+    try { data = JSON.parse($('data').textContent); } catch(e){ return fail(); }
+    crypto.subtle.importKey('raw', fromHex(m[1]), 'AES-GCM', false, ['decrypt'])
+      .then(function(key){ KEY = key; return crypto.subtle.decrypt({name:'AES-GCM', iv: fromB64(data.iv)}, key, fromB64(data.ct)); })
+      .then(function(buf){
+        var p = JSON.parse(new TextDecoder().decode(buf));
+        DOORS = p.doors || {};
+        if (p.title) $('title').textContent = p.title;
+        $('msgbox').style.display = 'none'; $('foot').style.display = '';
+        render(); setInterval(render, 60000);
+      })
+      .catch(fail);
+  }
+  start();
+})();
+</script>
+</template>
+<script>
+(function(){
+  'use strict';
+  var $ = function(id){ return document.getElementById(id); };
+  var CONFIG = /*CONFIG*/{"id":"familie","db":"advent-werkstatt","label":"Familie","defaultUrl":"https://dicostaempfli.github.io/advent/","people":[{"id":"mat","name":"Mat"},{"id":"mal","name":"Mal"},{"id":"lin","name":"Lin"},{"id":"dr","name":"D&R"}],"shared24":true,"showBy":true,"themeCss":""}/*END*/;
+  var DEFAULT_URL = CONFIG.defaultUrl;
+  var MAX_VIDEO = 24 * 1024 * 1024, MAX_ITEMS = 6;
+
+  /* ---------- Wer füllt welche Türchen? 24 ist gemeinsam ---------- */
+  var PEOPLE = CONFIG.people, SHARED24 = !!CONFIG.shared24, LAST = SHARED24 ? 23 : 24, MULTI = PEOPLE.length > 1;
+  var OTHERS = PEOPLE.map(function(p){ return p.id; }).filter(function(id){ return id !== 'dr'; });
+  var PART_ORDER = ['dr'].concat(OTHERS);
+  function owner(d){ return d >= 1 && d <= LAST ? PEOPLE[(d - 1) % PEOPLE.length].id : null; }
+  function nameOf(id){ for (var i=0;i<PEOPLE.length;i++) if (PEOPLE[i].id === id) return PEOPLE[i].name; return id; }
+  function doorsOf(id){ var r = []; for (var d=1; d<=LAST; d++) if (owner(d) === id) r.push(d); return r; }
+
+  var state = { meta: { title: '', baseUrl: DEFAULT_URL, key: '', role: '', imports: {} }, doors: {}, parts: {} };
+  var db = null, saveTimers = {}, urls = {}, prepared = [], beitragFile = null, hashKey = null;
+
+  /* ---------- Speicher auf diesem Gerät (IndexedDB) ---------- */
+  function openDb(){
+    return new Promise(function(res, rej){
+      var r = indexedDB.open(CONFIG.db, 1);
+      r.onupgradeneeded = function(){ r.result.createObjectStore('kv'); };
+      r.onsuccess = function(){ res(r.result); };
+      r.onerror = function(){ rej(r.error); };
+    });
+  }
+  function put(k, v){
+    if (!db) return Promise.reject(new Error('nodb'));
+    return new Promise(function(res, rej){
+      var t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k);
+      t.oncomplete = res; t.onerror = function(){ rej(t.error); }; t.onabort = function(){ rej(t.error); };
+    });
+  }
+  function get(k){
+    if (!db) return Promise.resolve(undefined);
+    return new Promise(function(res, rej){
+      var r = db.transaction('kv', 'readonly').objectStore('kv').get(k);
+      r.onsuccess = function(){ res(r.result); }; r.onerror = function(){ rej(r.error); };
+    });
+  }
+  function del(k){
+    if (!db) return Promise.resolve();
+    return new Promise(function(res){ var t = db.transaction('kv', 'readwrite'); t.objectStore('kv').delete(k); t.oncomplete = res; t.onerror = res; });
+  }
+  function loadAll(){
+    if (!db) return Promise.resolve();
+    return new Promise(function(res, rej){
+      var t = db.transaction('kv', 'readonly'), kr = t.objectStore('kv').getAllKeys();
+      t.oncomplete = function(){
+        var keys = kr.result.filter(function(k){ return k === 'meta' || /^door-\d+$/.test(k) || /^part-[a-z]+$/.test(k); });
+        Promise.all(keys.map(function(k){ return get(k).then(function(v){
+          if (k === 'meta') state.meta = Object.assign(state.meta, v);
+          else if (k.indexOf('door-') === 0) state.doors[+k.slice(5)] = v || {};
+          else state.parts[k.slice(5)] = v || {};
+        }); })).then(res, rej);
+      };
+      t.onerror = function(){ rej(t.error); };
+    });
+  }
+
+  /* Ein "Feld" ist ein Türchen 1–23 oder ein Teil von Türchen 24 */
+  function U(kind, k){ return { kind: kind, k: k }; }
+  function ukey(u){ return u.kind === 'door' ? 'door-' + u.k : 'part-' + u.k; }
+  function uget(u){
+    var box = u.kind === 'door' ? state.doors : state.parts;
+    if (!box[u.k]) box[u.k] = {};
+    if (!box[u.k].media) box[u.k].media = [];
+    return box[u.k];
+  }
+  function uset(u, v){ (u.kind === 'door' ? state.doors : state.parts)[u.k] = v; }
+  function saveUnit(u){
+    var key = ukey(u); clearTimeout(saveTimers[key]);
+    saveTimers[key] = setTimeout(function(){ put(key, uget(u)).catch(showStorageError); }, 300);
+  }
+  function saveUnitNow(u){ var key = ukey(u); clearTimeout(saveTimers[key]); return put(key, uget(u)); }
+  function saveMeta(){ return put('meta', state.meta).catch(showStorageError); }
+  function showStorageError(){
+    var el = state.meta.role === 'dr' ? $('buildMsg') : $('beitragMsg');
+    el.innerHTML = '<span class="err">Speichern auf diesem Gerät hat nicht geklappt. Bitte die Werkstatt in Safari öffnen.</span>';
+  }
+  function myUnits(){
+    var r = state.meta.role, list = doorsOf(r).map(function(d){ return U('door', d); });
+    if (SHARED24) list.push(U('part', r));
+    return list;
+  }
+  function allUnits(){
+    var list = []; for (var d=1; d<=LAST; d++) list.push(U('door', d));
+    if (SHARED24) PART_ORDER.forEach(function(w){ list.push(U('part', w)); });
+    return list;
+  }
+
+  /* ---------- Hilfen ---------- */
+  function hex(u){ return Array.prototype.map.call(u, function(b){ return ('0' + b.toString(16)).slice(-2); }).join(''); }
+  function fromHex(h){ var u = new Uint8Array(h.length/2); for (var i=0;i<u.length;i++) u[i]=parseInt(h.substr(i*2,2),16); return u; }
+  function b64(u){ var s = '', C = 0x8000; for (var i=0;i<u.length;i+=C) s += String.fromCharCode.apply(null, u.subarray(i, i+C)); return btoa(s); }
+  function fromB64(s){ var b = atob(s), u = new Uint8Array(b.length); for (var i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u; }
+  function newId(){ return hex(crypto.getRandomValues(new Uint8Array(16))); }
+  function mb(n){ return n > 1048576 ? (Math.round(n/104857.6)/10) + ' MB' : Math.max(1, Math.round(n/1024)) + ' KB'; }
+  function baseUrl(){ var u = (state.meta.baseUrl || DEFAULT_URL).trim().split('#')[0]; return u.replace(/[^\/]*\.html?$/i, ''); }
+  function familyLink(){ return baseUrl() + '#' + state.meta.key; }
+  function werkstattLink(){ var f = (location.pathname.split('/').pop() || '').match(/^[\w.-]+\.html?$/) ? location.pathname.split('/').pop() : 'werkstatt-' + CONFIG.id + '.html'; return baseUrl() + f + '#' + state.meta.key; }
+  function keyFor(use){ return crypto.subtle.importKey('raw', fromHex(state.meta.key), 'AES-GCM', false, use); }
+  function readBuf(blob){ return blob.arrayBuffer ? blob.arrayBuffer() : new Response(blob).arrayBuffer(); }
+  function dataUrlToBlob(u){ var m = u.match(/^data:([^;]+);base64,(.*)$/); return new Blob([fromB64(m[2])], {type: m[1]}); }
+  function err(t){ return '<span class="err">' + t + '</span>'; }
+  function copy(text, btn, label){
+    (navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(text) : Promise.reject())
+      .then(function(){ btn.textContent = 'Kopiert'; setTimeout(function(){ btn.textContent = label; }, 2000); })
+      .catch(function(){ btn.textContent = 'Bitte den Text oben markieren und kopieren'; });
+  }
+  function fileLink(file, onTap){
+    var a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name;
+    a.innerHTML = '<span></span><span></span>'; a.firstChild.textContent = file.name; a.lastChild.textContent = mb(file.size);
+    if (onTap) a.onclick = onTap;
+    return a;
+  }
+  function shareOrDownload(files, done){
+    if (navigator.canShare && navigator.share && navigator.canShare({ files: files })){
+      return navigator.share({ files: files }).then(function(){ done(true); }, function(){ done(false); });
+    }
+    files.forEach(function(f, i){ setTimeout(function(){
+      var a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name; document.body.appendChild(a); a.click(); a.remove();
+    }, i * 400); });
+    done(true);
+  }
+
+  function drawToJpeg(src, w0, h0){
+    return new Promise(function(res, rej){
+      var max = 1600, s = Math.min(1, max / Math.max(w0, h0)), w = Math.round(w0 * s), h = Math.round(h0 * s);
+      var c = document.createElement('canvas'); c.width = w; c.height = h;
+      c.getContext('2d').drawImage(src, 0, 0, w, h);
+      if (c.toBlob) c.toBlob(function(b){ b ? res(b) : rej(new Error('blob')); }, 'image/jpeg', 0.82);
+      else res(dataUrlToBlob(c.toDataURL('image/jpeg', 0.82)));
+    });
+  }
+  function loadImg(src){ return new Promise(function(res, rej){ var i = new Image(); i.onload = function(){ res(i); }; i.onerror = rej; i.src = src; }); }
+  function readDataUrl(file){ return new Promise(function(res, rej){ var r = new FileReader(); r.onload = function(){ res(r.result); }; r.onerror = rej; r.readAsDataURL(file); }); }
+  /* Drei Wege, ein Foto zu lesen: je nach Browser klappt einer davon */
+  function shrinkPhoto(file){
+    var viaBitmap = window.createImageBitmap ? createImageBitmap(file).then(function(bm){ return drawToJpeg(bm, bm.width, bm.height); }) : Promise.reject();
+    return viaBitmap.catch(function(){
+      var url = URL.createObjectURL(file);
+      return loadImg(url).then(function(i){ URL.revokeObjectURL(url); return drawToJpeg(i, i.naturalWidth, i.naturalHeight); },
+        function(e){ URL.revokeObjectURL(url); throw e; });
+    }).catch(function(){
+      return readDataUrl(file).then(loadImg).then(function(i){ return drawToJpeg(i, i.naturalWidth, i.naturalHeight); });
+    });
+  }
+
+  /* ---------- Oberfläche ---------- */
+  function filledObj(x){ return !!(x && ((x.media && x.media.length) || (x.title && x.title.trim()) || (x.text && x.text.trim()))); }
+  function filledU(u){ return filledObj((u.kind === 'door' ? state.doors : state.parts)[u.k]); }
+  function updateProgress(){
+    var units = myUnits(), n = units.filter(filledU).length;
+    $('progress').textContent = n + ' von ' + units.length + ' deiner Türchen gefüllt';
+  }
+  function renderWho(){
+    var g = $('whoGrid'); g.innerHTML = '';
+    PEOPLE.forEach(function(p){
+      var b = document.createElement('button'); b.textContent = p.name;
+      b.onclick = function(){
+        if (p.id !== 'dr' && !state.meta.key){ $('whoMsg').innerHTML = err('Öffne die Werkstatt über den Link, den Rico dir geschickt hat.'); return; }
+        state.meta.role = p.id;
+        if (p.id === 'dr' && !state.meta.key) state.meta.key = hex(crypto.getRandomValues(new Uint8Array(32)));
+        saveMeta(); renderAll();
+      };
+      g.appendChild(b);
+    });
+  }
+  function renderAll(){
+    var r = state.meta.role;
+    if (!r && !MULTI){ r = state.meta.role = 'dr'; if (!state.meta.key) state.meta.key = hex(crypto.getRandomValues(new Uint8Array(32))); saveMeta(); }
+    $('whoCard').style.display = r ? 'none' : '';
+    $('app').style.display = r ? '' : 'none';
+    if (!r){ renderWho(); return; }
+    document.body.classList.toggle('is-dr', r === 'dr');
+    document.body.classList.toggle('is-multi', MULTI);
+    $('switchWho').style.display = MULTI ? '' : 'none';
+    $('hello').textContent = 'Hallo ' + nameOf(r);
+    $('myDoors').textContent = !MULTI ? 'Ihr füllt alle 24 Türchen.' : 'Deine Türchen: ' + doorsOf(r).join(', ') + (SHARED24 ? ' und dein Teil vom gemeinsamen 24. Dezember.' : '.');
+    if (r === 'dr'){
+      $('calTitle').value = state.meta.title || '';
+      $('baseUrl').value = state.meta.baseUrl || DEFAULT_URL;
+      $('link').textContent = familyLink();
+      $('wLink').textContent = werkstattLink();
+      renderStatus();
+    }
+    var wrap = $('doors'); wrap.innerHTML = '';
+    myUnits().forEach(function(u){ wrap.appendChild(unitCard(u)); });
+    updateProgress();
+  }
+  function renderStatus(){
+    var s = $('status'); s.innerHTML = '';
+    OTHERS.forEach(function(w){
+      var units = doorsOf(w).map(function(d){ return U('door', d); }).concat(SHARED24 ? [U('part', w)] : []);
+      var n = units.filter(filledU).length, t = state.meta.imports && state.meta.imports[w];
+      var p = document.createElement('p'); p.className = 'note'; p.style.margin = '4px 0';
+      p.textContent = nameOf(w) + ': ' + n + ' von ' + units.length + ' gefüllt' + (t ? ' · zuletzt übernommen ' + new Date(t).toLocaleString('de-CH', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }) : ' · noch nichts erhalten');
+      s.appendChild(p);
+    });
+  }
+  function blobUrl(id){
+    if (urls[id]) return Promise.resolve(urls[id]);
+    return get('blob-' + id).then(function(b){ if (!b) throw new Error('missing'); urls[id] = URL.createObjectURL(b); return urls[id]; });
+  }
+  function unitCard(u){
+    var isPart = u.kind === 'part', withTitle = !isPart || u.k === 'dr';
+    var card = document.createElement('section'); card.className = 'card';
+    card.innerHTML =
+      '<div class="door-head"><h3>' + (isPart ? '24. Dezember · gemeinsam' : u.k + '. Dezember') + '</h3><span class="badge"></span></div>' +
+      (isPart ? '<p class="note" style="margin:-4px 0 12px">Alle steuern etwas bei. Hier ist dein Teil.</p>' : '') +
+      '<div class="mlist"></div>' +
+      '<div class="row" style="margin-bottom:12px"><span class="btn pick">Foto oder Video hinzufügen<input type="file" accept="image/*,video/*" multiple></span></div>' +
+      (withTitle ? '<label>Überschrift' + (isPart ? ' für das ganze Türchen' : '') + '<input type="text" class="t" maxlength="80"></label>' : '') +
+      '<label>Text<textarea class="x" maxlength="1500"></textarea></label>' +
+      '<p class="msg"></p>';
+    var badge = card.querySelector('.badge'), mlist = card.querySelector('.mlist');
+    var fi = card.querySelector('input[type=file]'), t = card.querySelector('.t'), xa = card.querySelector('.x'), msg = card.querySelector('.msg');
+    var x = uget(u);
+    if (t) t.value = x.title || ''; xa.value = x.text || '';
+    function badgePaint(){ var ok = filledU(u); badge.textContent = ok ? 'gefüllt' : 'leer'; badge.className = 'badge' + (ok ? ' ok' : ''); updateProgress(); }
+    function paintMedia(){
+      mlist.innerHTML = '';
+      uget(u).media.forEach(function(m){
+        var box = document.createElement('div'); box.className = 'media';
+        var rm = document.createElement('button'); rm.className = 'small rm'; rm.type = 'button'; rm.textContent = 'Entfernen';
+        var info = document.createElement('div'); info.className = 'info'; info.textContent = (m.type === 'video' ? 'Video' : 'Foto') + ' · ' + mb(m.size || 0);
+        blobUrl(m.id).then(function(url){
+          var el = document.createElement(m.type === 'video' ? 'video' : 'img');
+          if (m.type === 'video'){ el.controls = true; el.setAttribute('playsinline',''); el.preload = 'metadata'; }
+          el.src = url; box.insertBefore(el, box.firstChild);
+        }).catch(function(){ info.innerHTML = err('Datei fehlt auf diesem Gerät.'); });
+        rm.onclick = function(){
+          var c = uget(u); c.media = c.media.filter(function(z){ return z.id !== m.id; });
+          saveUnitNow(u).then(function(){ return del('blob-' + m.id); }).catch(showStorageError);
+          if (urls[m.id]) { URL.revokeObjectURL(urls[m.id]); delete urls[m.id]; }
+          paintMedia(); badgePaint();
+        };
+        box.appendChild(rm); box.appendChild(info); mlist.appendChild(box);
+      });
+    }
+    if (t) t.oninput = function(){ uget(u).title = t.value; saveUnit(u); badgePaint(); };
+    xa.oninput = function(){ uget(u).text = xa.value; saveUnit(u); badgePaint(); };
+    fi.onchange = function(){
+      var files = Array.prototype.slice.call(fi.files || []); fi.value = '';
+      if (!files.length) return;
+      var problems = [], chain = Promise.resolve();
+      files.forEach(function(f){
+        chain = chain.then(function(){
+          if (uget(u).media.length >= MAX_ITEMS){ problems.push('Pro Türchen gehen höchstens ' + MAX_ITEMS + ' Fotos oder Videos.'); return; }
+          var isVideo = /^video\//.test(f.type) || /\.(mov|mp4|m4v|webm)$/i.test(f.name || '');
+          var isImage = /^image\//.test(f.type) || /\.(jpe?g|png|heic|heif|webp|gif)$/i.test(f.name || '');
+          if (isVideo){
+            if (f.size > MAX_VIDEO){ problems.push('Ein Video ist mit ' + mb(f.size) + ' zu gross (höchstens 24 MB). Tipp: Schick es dir selbst per WhatsApp und speichere es von dort, dann wird es kleiner. Oder kürze es.'); return; }
+            msg.textContent = 'Video wird übernommen …';
+            return addItem({ type: 'video', mime: f.type || 'video/mp4', blob: f });
+          }
+          if (isImage){
+            msg.textContent = 'Foto wird vorbereitet …';
+            return shrinkPhoto(f).then(function(b){ return addItem({ type: 'image', mime: 'image/jpeg', blob: b }); })
+              .catch(function(){ problems.push('Ein Foto konnte nicht gelesen werden. Öffne die Werkstatt in Safari über den Link, nicht in einer Vorschau.'); });
+          }
+          problems.push('Diese Datei ist kein Foto und kein Video.');
+        });
+      });
+      chain.then(function(){ msg.innerHTML = problems.length ? err(problems.join('<br>')) : ''; paintMedia(); badgePaint(); });
+    };
+    function addItem(it){
+      var id = newId();
+      return put('blob-' + id, it.blob).then(function(){
+        uget(u).media.push({ id: id, type: it.type, mime: it.mime, size: it.blob.size, exported: false });
+        return saveUnitNow(u);
+      });
+    }
+    paintMedia(); badgePaint();
+    return card;
+  }
+
+  /* ---------- Beitrag (Mat, Mal, Lin) ---------- */
+  /* Format: 12 Byte IV + verschlüsselt( 4 Byte Länge + Kopf-JSON + alle Medien hintereinander ) */
+  function buildBeitrag(){
+    var who = state.meta.role, head = { v: 1, who: who, doors: {}, part: null }, blobs = [], off = 0;
+    function take(x){
+      var media = [];
+      var chain = Promise.resolve();
+      (x.media || []).forEach(function(m){
+        chain = chain.then(function(){ return get('blob-' + m.id); }).then(function(b){
+          if (!b) return;
+          return readBuf(b).then(function(ab){ media.push({ id: m.id, type: m.type, mime: m.mime, off: off, len: ab.byteLength }); off += ab.byteLength; blobs.push(new Uint8Array(ab)); });
+        });
+      });
+      return chain.then(function(){ return { title: x.title || '', text: x.text || '', media: media }; });
+    }
+    var chain = Promise.resolve();
+    doorsOf(who).forEach(function(d){ chain = chain.then(function(){ return take(uget(U('door', d))); }).then(function(r){ head.doors[d] = r; }); });
+    if (SHARED24) chain = chain.then(function(){ return take(uget(U('part', who))); }).then(function(r){ head.part = r; });
+    return chain.then(function(){
+      var hb = new TextEncoder().encode(JSON.stringify(head));
+      var total = 4 + hb.length + off, buf = new Uint8Array(total), p = 0;
+      new DataView(buf.buffer).setUint32(0, hb.length); p = 4; buf.set(hb, p); p += hb.length;
+      blobs.forEach(function(b){ buf.set(b, p); p += b.length; });
+      return keyFor(['encrypt']).then(function(key){
+        var iv = crypto.getRandomValues(new Uint8Array(12));
+        return crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, buf).then(function(ct){
+          var out = new Uint8Array(12 + ct.byteLength); out.set(iv, 0); out.set(new Uint8Array(ct), 12);
+          return new File([out], 'beitrag-' + who + '.advent', { type: 'application/octet-stream' });
+        });
+      });
+    });
+  }
+  function readBeitrag(file){
+    return readBuf(file).then(function(ab){
+      var u = new Uint8Array(ab);
+      return keyFor(['decrypt']).then(function(key){ return crypto.subtle.decrypt({ name: 'AES-GCM', iv: u.subarray(0, 12) }, key, u.subarray(12)); });
+    }).then(function(pt){
+      var u = new Uint8Array(pt), hl = new DataView(pt).getUint32(0);
+      var head = JSON.parse(new TextDecoder().decode(u.subarray(4, 4 + hl)));
+      return { head: head, body: u.subarray(4 + hl) };
+    });
+  }
+  function applyBeitrag(b){
+    var who = b.head.who;
+    if (!PEOPLE.some(function(p){ return p.id === who; })) throw new Error('who');
+    var jobs = Promise.resolve();
+    function apply(u, src){
+      src = src || { title: '', text: '', media: [] };
+      var old = uget(u), oldMedia = old.media || [], keep = {};
+      var media = [];
+      (src.media || []).forEach(function(m){
+        if (!/^[0-9a-f]{32}$/.test(m.id)) return;
+        keep[m.id] = 1;
+        var prev = oldMedia.filter(function(z){ return z.id === m.id; })[0];
+        var blob = new Blob([b.body.slice(m.off, m.off + m.len)], { type: m.mime });
+        jobs = jobs.then(function(){ return put('blob-' + m.id, blob); });
+        media.push({ id: m.id, type: m.type === 'video' ? 'video' : 'image', mime: m.mime, size: m.len, exported: !!(prev && prev.exported) });
+      });
+      oldMedia.forEach(function(z){ if (!keep[z.id]) jobs = jobs.then(function(){ return del('blob-' + z.id); }); });
+      uset(u, { title: String(src.title || ''), text: String(src.text || ''), media: media });
+      jobs = jobs.then(function(){ return saveUnitNow(u); });
+    }
+    doorsOf(who).forEach(function(d){ apply(U('door', d), b.head.doors && b.head.doors[d]); });
+    if (SHARED24) apply(U('part', who), b.head.part);
+    return jobs.then(function(){ return who; });
+  }
+  $('prepBeitrag').onclick = function(){
+    var m = $('beitragMsg'); $('beitragOut').style.display = 'none'; m.textContent = 'Wird verschlüsselt …';
+    buildBeitrag().then(function(f){
+      beitragFile = f;
+      var box = $('beitragFile'); box.innerHTML = ''; box.appendChild(fileLink(f));
+      m.textContent = 'Dein Beitrag ist bereit (' + mb(f.size) + ').';
+      $('beitragOut').style.display = '';
+    }).catch(function(){ m.innerHTML = err('Das hat nicht geklappt. Versuche es nochmals.'); });
+  };
+  $('shareBeitrag').onclick = function(){
+    if (!beitragFile) return;
+    shareOrDownload([beitragFile], function(ok){ if (ok) $('beitragMsg').textContent = 'Gesendet oder gesichert. Danke!'; });
+  };
+  $('ownBtn').onclick = function(){
+    var f = $('ownIn').files[0], m = $('ownMsg');
+    if (!f){ m.innerHTML = err('Wähle zuerst die .advent-Datei.'); return; }
+    m.textContent = 'Wird geladen …';
+    readBeitrag(f).then(function(b){
+      if (b.head.who !== state.meta.role) throw new Error('other');
+      return applyBeitrag(b);
+    }).then(function(){ renderAll(); m.textContent = 'Geladen. Deine Türchen sind wieder da.'; })
+      .catch(function(e){ m.innerHTML = err(e && e.message === 'other' ? 'Diese Datei ist der Beitrag einer anderen Person.' : 'Diese Datei passt nicht zu diesem Kalender.'); });
+  };
+
+  /* ---------- Beiträge übernehmen (D&R) ---------- */
+  $('beitragBtn').onclick = function(){
+    var files = Array.prototype.slice.call($('beitragIn').files || []), m = $('beitragInMsg');
+    if (!files.length){ m.innerHTML = err('Wähle zuerst eine oder mehrere .advent-Dateien.'); return; }
+    var done = [], bad = 0, chain = Promise.resolve();
+    m.textContent = 'Wird übernommen …';
+    files.forEach(function(f){
+      chain = chain.then(function(){ return readBeitrag(f); }).then(function(b){
+        if (b.head.who === 'dr') throw new Error('dr');
+        return applyBeitrag(b);
+      }).then(function(who){
+        state.meta.imports = state.meta.imports || {}; state.meta.imports[who] = new Date().toISOString(); done.push(nameOf(who));
+      }).catch(function(){ bad++; });
+    });
+    chain.then(function(){ return saveMeta(); }).then(function(){
+      $('beitragIn').value = ''; renderStatus();
+      m.innerHTML = (done.length ? 'Übernommen: ' + done.join(', ') + '. Jetzt die Dateien vorbereiten und hochladen.' : '') +
+        (bad ? (done.length ? '<br>' : '') + err(bad + ' Datei(en) passten nicht zu diesem Kalender.') : '');
+    });
+  };
+
+  /* ---------- Veröffentlichen (D&R) ---------- */
+  function payload(){
+    var doors = {};
+    function med(x){ return (x.media || []).map(function(m){ return { id: m.id, type: m.type, mime: m.mime }; }); }
+    for (var d=1; d<=LAST; d++){
+      var x = state.doors[d];
+      if (filledObj(x)) doors[d] = { title: (x.title||'').trim(), text: (x.text||'').trim(), by: CONFIG.showBy ? nameOf(owner(d)) : '', media: med(x) };
+    }
+    var parts = [];
+    if (SHARED24) PART_ORDER.forEach(function(w){ var x = state.parts[w]; if (filledObj(x)) parts.push({ who: w, name: nameOf(w), text: (x.text||'').trim(), media: med(x) }); });
+    if (parts.length) doors[24] = { title: ((state.parts.dr || {}).title || '').trim(), parts: parts };
+    return { v: 3, title: (state.meta.title || '').trim() || 'Unser Advent', doors: doors };
+  }
+  function buildIndex(key){
+    var iv = crypto.getRandomValues(new Uint8Array(12));
+    return crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, new TextEncoder().encode(JSON.stringify(payload())))
+      .then(function(ct){
+        var data = JSON.stringify({ v: 3, iv: b64(iv), ct: b64(new Uint8Array(ct)) });
+        var csp = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; media-src blob:; connect-src 'self'; base-uri 'none'; form-action 'none'";
+        var html = '<!DOCTYPE html>\n<html lang="de">\n<head>\n<meta charset="utf-8">\n' +
+          '<meta http-equiv="Content-Security-Policy" content="' + csp + '">\n' +
+          '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n' +
+          '<meta name="referrer" content="no-referrer">\n<meta name="robots" content="noindex, nofollow">\n' +
+          '<title>Adventskalender</title>\n</head>\n<body>\n' +
+          '<script type="application/json" id="data">' + data + '</scr' + 'ipt>\n' +
+          $('tpl').innerHTML + (CONFIG.themeCss ? '\n<style>' + CONFIG.themeCss + '</style>' : '') + '\n</body>\n</html>\n';
+        return new File([html], 'index.html', { type: 'text/html' });
+      });
+  }
+  function encryptMedia(key, m){
+    return get('blob-' + m.id).then(function(b){ if (!b) throw new Error('missing'); return readBuf(b); }).then(function(buf){
+      var iv = crypto.getRandomValues(new Uint8Array(12));
+      return crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, buf).then(function(ct){
+        var out = new Uint8Array(12 + ct.byteLength); out.set(iv, 0); out.set(new Uint8Array(ct), 12);
+        return new File([out], m.id + '.bin', { type: 'application/octet-stream' });
+      });
+    });
+  }
+  function prepare(all){
+    var msgEl = $('buildMsg'), out = $('out');
+    out.style.display = 'none'; prepared = [];
+    msgEl.textContent = 'Wird verschlüsselt …';
+    var items = [];
+    allUnits().forEach(function(u){ var x = (u.kind === 'door' ? state.doors : state.parts)[u.k]; ((x && x.media) || []).forEach(function(m){ if (all || !m.exported) items.push({ u: u, m: m }); }); });
+    var files = [], missing = 0;
+    keyFor(['encrypt']).then(function(key){
+      return buildIndex(key).then(function(f){ files.push({ file: f }); }).then(function(){
+        var chain = Promise.resolve();
+        items.forEach(function(it, i){
+          chain = chain.then(function(){
+            msgEl.textContent = 'Wird verschlüsselt … ' + (i + 1) + ' von ' + items.length;
+            return encryptMedia(key, it.m).then(function(f){ files.push({ file: f, it: it }); }).catch(function(){ missing++; });
+          });
+        });
+        return chain;
+      });
+    }).then(function(){
+      prepared = files;
+      var list = $('fileList'); list.innerHTML = '';
+      files.forEach(function(p){ list.appendChild(fileLink(p.file, function(){ markDone([p]); })); });
+      var total = files.reduce(function(s, p){ return s + p.file.size; }, 0);
+      msgEl.innerHTML = files.length + (files.length === 1 ? ' Datei' : ' Dateien') + ' bereit (' + mb(total) + '): die index.html' +
+        (files.length > 1 ? ' und ' + (files.length - 1) + (files.length === 2 ? ' neues Foto oder Video.' : ' neue Fotos und Videos.') : '. Keine neuen Fotos oder Videos.') +
+        (missing ? '<br>' + err(missing + ' Datei(en) fehlen auf diesem Gerät und wurden übersprungen.') : '');
+      out.style.display = '';
+    }).catch(function(){ msgEl.innerHTML = err('Das hat nicht geklappt. Versuche es nochmals.'); });
+  }
+  function markDone(list){
+    var touched = {};
+    list.forEach(function(p){ if (p.it){ p.it.m.exported = true; touched[ukey(p.it.u)] = p.it.u; } });
+    Object.keys(touched).forEach(function(k){ saveUnit(touched[k]); });
+  }
+  $('prepare').onclick = function(){ prepare(false); };
+  $('prepareAll').onclick = function(){ prepare(true); };
+  $('shareAll').onclick = function(){
+    shareOrDownload(prepared.map(function(p){ return p.file; }), function(ok){
+      if (ok){ markDone(prepared); $('buildMsg').textContent = 'Gesichert. Jetzt alle Dateien ins GitHub-Repo hochladen.'; }
+    });
+  };
+
+  /* ---------- Einstellungen (D&R) ---------- */
+  $('calTitle').oninput = function(){ state.meta.title = this.value; saveMeta(); };
+  $('baseUrl').oninput = function(){ state.meta.baseUrl = this.value; saveMeta(); $('link').textContent = familyLink(); $('wLink').textContent = werkstattLink(); };
+  $('copyLink').onclick = function(){ copy(familyLink(), this, 'Kalender-Link kopieren'); };
+  $('copyWLink').onclick = function(){ copy(werkstattLink(), this, 'Werkstatt-Link kopieren'); };
+  $('switchWho').onclick = function(){ state.meta.role = ''; saveMeta(); renderAll(); };
+
+  /* ---------- Sicherung laden (D&R) ---------- */
+  $('importBtn').onclick = function(){
+    var msg = $('importMsg'), files = Array.prototype.slice.call($('importFile').files || []);
+    var km = ($('importLink').value || '').match(/#([0-9a-f]{64})/);
+    var idx = files.filter(function(f){ return /\.html?$/i.test(f.name); })[0];
+    if (!idx){ msg.innerHTML = err('Wähle die index.html und die .bin-Dateien aus.'); return; }
+    if (!km){ msg.innerHTML = err('Füge den ganzen Kalender-Link ein, mit dem Teil nach dem #.'); return; }
+    var bins = {}; files.forEach(function(f){ var m = f.name.match(/([0-9a-f]{32})\.bin$/); if (m) bins[m[1]] = f; });
+    var hexKey = km[1], key, p, missing = 0;
+    msg.textContent = 'Wird geöffnet …';
+    idx.text().then(function(txt){
+      var m = txt.match(/<script type="application\/json" id="data">([\s\S]*?)<\/script>/);
+      if (!m) throw new Error('format');
+      var data = JSON.parse(m[1]);
+      return crypto.subtle.importKey('raw', fromHex(hexKey), 'AES-GCM', false, ['decrypt']).then(function(k){
+        key = k; return crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromB64(data.iv) }, key, fromB64(data.ct));
+      });
+    }).then(function(buf){
+      p = JSON.parse(new TextDecoder().decode(buf));
+      var doors = {}, parts = {}, chain = Promise.resolve();
+      function restore(src, dst){
+        if (src.img) chain = chain.then(function(){
+          var id = newId(), bl = dataUrlToBlob(src.img);
+          return put('blob-' + id, bl).then(function(){ dst.media.push({ id: id, type: 'image', mime: bl.type, size: bl.size, exported: false }); });
+        });
+        (src.media || []).forEach(function(m){
+          chain = chain.then(function(){
+            var f = bins[m.id]; if (!f){ missing++; return; }
+            return readBuf(f).then(function(ab){ var u = new Uint8Array(ab); return crypto.subtle.decrypt({ name: 'AES-GCM', iv: u.subarray(0, 12) }, key, u.subarray(12)); })
+              .then(function(pt){ var bl = new Blob([pt], { type: m.mime }); return put('blob-' + m.id, bl).then(function(){ dst.media.push({ id: m.id, type: m.type, mime: m.mime, size: bl.size, exported: true }); }); })
+              .catch(function(){ missing++; });
+          });
+        });
+      }
+      Object.keys(p.doors || {}).forEach(function(d){
+        var src = p.doors[d];
+        if (+d === 24 && SHARED24 && src.parts){
+          src.parts.forEach(function(pt){ var dst = { title: '', text: pt.text || '', media: [] }; if (pt.who === 'dr') dst.title = src.title || ''; parts[pt.who] = dst; restore(pt, dst); });
+          if (!parts.dr && src.title) parts.dr = { title: src.title, text: '', media: [] };
+        } else if (+d === 24 && SHARED24){
+          var dst24 = { title: src.title || '', text: src.text || '', media: [] }; parts.dr = dst24; restore(src, dst24);
+        } else {
+          var dst = { title: src.title || '', text: src.text || '', media: [] }; doors[+d] = dst; restore(src, dst);
+        }
+      });
+      return chain.then(function(){ return { doors: doors, parts: parts }; });
+    }).then(function(r){
+      state.meta.key = hexKey; state.meta.title = p.title || '';
+      var base = $('importLink').value.split('#')[0].trim(); if (base) state.meta.baseUrl = base;
+      state.doors = r.doors; state.parts = r.parts;
+      var jobs = [put('meta', state.meta)];
+      allUnits().forEach(function(u){ jobs.push(put(ukey(u), uget(u))); });
+      return Promise.all(jobs);
+    }).then(function(){
+      renderAll();
+      msg.innerHTML = 'Übernommen. Alle Türchen sind wieder da.' + (missing ? '<br>' + err(missing + ' Foto(s) oder Video(s) fehlten in der Auswahl.') : '');
+    }).catch(function(){ msg.innerHTML = err('Das passt nicht zusammen. Prüfe, ob Dateien und Link zum selben Kalender gehören.'); });
+  };
+
+  /* ---------- Start ---------- */
+  function migrate(){
+    var jobs = [];
+    var old24 = SHARED24 ? state.doors[24] : null;
+    if (old24){
+      if (filledObj(old24) && !filledObj(state.parts.dr)){ state.parts.dr = old24; jobs.push(put('part-dr', old24).catch(function(){})); }
+      delete state.doors[24]; jobs.push(del('door-24'));
+    }
+    allUnits().forEach(function(u){
+      var x = (u.kind === 'door' ? state.doors : state.parts)[u.k];
+      if (x && typeof x.img === 'string' && x.img.indexOf('data:') === 0){
+        var id = newId(), bl = dataUrlToBlob(x.img);
+        jobs.push(put('blob-' + id, bl).then(function(){
+          x.media = (x.media || []).concat([{ id: id, type: 'image', mime: bl.type, size: bl.size, exported: false }]);
+          delete x.img; return put(ukey(u), x);
+        }).catch(function(){}));
+      }
+    });
+    return Promise.all(jobs);
+  }
+  function boot(){
+    if (!window.crypto || !crypto.subtle){
+      document.querySelector('main').innerHTML = '<h1>Advent-Werkstatt</h1><p class="lead">Dieser Browser kann nicht verschlüsseln. Öffne die Seite in Safari, Chrome oder Firefox über den Link.</p>';
+      return;
+    }
+    document.querySelector('h1').textContent = 'Advent-Werkstatt · ' + CONFIG.label;
+    document.title = 'Advent-Werkstatt · ' + CONFIG.label;
+    var hm = location.hash.match(/^#([0-9a-f]{64})$/); if (hm) hashKey = hm[1];
+    openDb().catch(function(){ return null; }).then(function(d){ db = d; return loadAll(); }).catch(function(){})
+      .then(migrate)
+      .then(function(){
+        var warn = '';
+        if (hashKey){
+          if (state.meta.role === 'dr' && state.meta.key && state.meta.key !== hashKey) warn = 'Dieser Werkstatt-Link gehört zu einem anderen Kalender. Dein Schlüssel wurde nicht geändert.';
+          else if (state.meta.key !== hashKey){ state.meta.key = hashKey; saveMeta(); }
+          try { history.replaceState(null, '', location.pathname + location.search); } catch(e){}
+        }
+        renderAll();
+        var embedded = false; try { embedded = window.self !== window.top; } catch(e){ embedded = true; }
+        if (embedded || !db || warn){
+          var w = document.createElement('section'); w.className = 'card'; w.style.borderColor = '#f09595';
+          w.innerHTML = warn ? '<h2>Achtung</h2><p class="note" style="color:var(--cream)"></p>'
+            : '<h2>Bitte in Safari öffnen</h2><p class="note" style="color:var(--cream)">Diese Werkstatt läuft gerade in einer Vorschau. Dort können Fotos und Videos oft nicht gelesen und nichts gespeichert werden. Öffne sie in Safari über den Link.</p>';
+          if (warn) w.querySelector('p').textContent = warn;
+          var main = document.querySelector('main'); main.insertBefore(w, main.children[1]);
+        }
+        if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function(){});
+      });
+  }
+  boot();
+})();
+</script>
+</body>
+</html>
